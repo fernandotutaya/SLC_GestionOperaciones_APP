@@ -1,0 +1,51 @@
+{
+  "name": "slc_pro",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rsbuild build",
+    "dev": "rsbuild dev --open",
+    "preview": "rsbuild preview"
+  },
+  "dependencies": {
+    "@mdi/font": "^7.4.47",
+    "@primevue/auto-import-resolver": "^4.3.2",
+    "@primevue/themes": "^4.3.2",
+    "@vuelidate/core": "^2.0.3",
+    "@vuelidate/validators": "^2.0.4",
+    "axios": "^1.8.3",
+    "dotenv": "^16.4.7",
+    "flag-icon-css": "^4.1.7",
+    "i18n-iso-countries": "^7.14.0",
+    "jwt-decode": "^4.0.0",
+    "pinia": "^2.3.1",
+    "primeflex": "^3.3.1",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.3.2",
+    "unplugin-vue-components": "^28.4.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "vue-tel-input": "^9.3.0"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^1.2.16",
+    "@rsbuild/plugin-vue": "^1.0.7",
+    "@types/node": "^22.13.10",
+    "@types/vue-tel-input": "^2.1.7",
+    "@vue/compiler-sfc": "latest",
+    "autoprefixer": "^10.4.21",
+    "bun-types": "latest",
+    "css-loader": "^6.11.0",
+    "globals": "^16.0.0",
+    "postcss": "^8.5.3",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^3.3.4",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-primeui": "^0.3.4",
+    "ts-loader": "^9.5.2",
+    "typescript": "~5.6.3",
+    "vue-loader": "^17.4.2",
+    "vue-tsc": "^2.2.8"
+  }
+}

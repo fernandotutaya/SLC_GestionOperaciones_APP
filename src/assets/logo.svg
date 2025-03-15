@@ -1,0 +1,12 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#2E86C1" />
+
+  <!-- Hoja estilizada -->
+  <path d="M100 30 Q120 50 100 70 Q80 50 100 30 Z" fill="#FFFFFF" />
+  <path d="M100 70 Q120 90 100 110 Q80 90 100 70 Z" fill="#FFFFFF" />
+  <path d="M100 110 Q120 130 100 150 Q80 130 100 110 Z" fill="#FFFFFF" />
+
+  <!-- Texto del nombre de la marca -->
+  <text x="100" y="180" font-family="Arial, sans-serif" font-size="20" fill="#333333" text-anchor="middle">MiMarca</text>
+</svg>
