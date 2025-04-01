@@ -1,7 +1,7 @@
 <template>
     <div class="p-4">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Procesos de Lavado</h1>
+        <h1 class="text-3xl font-bold text-gray-800">Procesos de Secado</h1>
         <Button 
           label="Agregar Proceso" 
           icon="pi pi-plus" 
@@ -67,11 +67,11 @@
   // Buscar la operación a la que pertenece un proceso
   const findParentOperation = (procesoId: string): Operacion | null => {
     return operationStore.operaciones.find(op => 
-      op.procesos.some(p => p._id === procesoId && p.tipo === 'Lavado')
+      op.procesos.some(p => p._id === procesoId && p.tipo === 'secado')
     ) || null;
   };
   
-  const fetchProcesses = async (filters: ProcesoFilters = { tipo: 'Lavado' }) => {
+  const fetchProcesses = async (filters: ProcesoFilters = { tipo: 'secado' }) => {
     try {
       // Primero obtenemos operaciones actualizadas para asegurar que tenemos los datos más recientes
       await operationStore.fetchOperaciones();

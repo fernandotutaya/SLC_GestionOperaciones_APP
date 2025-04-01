@@ -4,8 +4,8 @@ export interface Operacion {
   fecInicio: string;
   fecFinal: string;
   estadoOperacion: boolean;
-  currentStage: string;
-  nextStage: string;
+  currentStage: string,
+  nextStage: string
   procesos: Proceso[]; // Changed to use Proceso interface
 }
 
@@ -22,7 +22,7 @@ export interface Proceso {
   fecha: any;
   hora: any;
   operacionId?: string;
-  responsable: Responsable; 
+  responsable: Responsable; // Mantener como objeto en el frontend
   detalles: ProcesoDetail[]; // Changed to use ProcesoDetail interface
   estado: boolean;
   createdAt: string;
@@ -38,16 +38,17 @@ export interface Responsable {
 }
 
 // Añadir tipo para nuevo proceso
-export interface NewProceso extends Omit<Proceso, '_id' | 'createdAt'> {
+export interface NewProceso extends Omit<Proceso, '_id' | 'createdAt' | 'responsable'> {
   _id?: string;
   createdAt?: string;
+  responsable: { _id: string }; // Enviar solo el _id del responsable en las solicitudes HTTP
 }
 
 // Define the detail of a process
 export interface ProcesoDetail {
-  numOrden?: string;
+  numOrden: string;
   maquina:  Maquina; 
-  cantPrendas?: number;
+  cantPrendas: number;
   etiqueta?: string;
   observaciones?: string;
 }

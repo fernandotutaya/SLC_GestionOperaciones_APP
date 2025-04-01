@@ -11,12 +11,12 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from '@/stores/AuthStore';
-import { useEmployeeStore } from './stores/EmployeeStore'
 
 import Noir from '@/themes/Noir'
 
 
 async function initializeApp() {
+
     const app = createApp(App);
 
     app.use(PrimeVue, {

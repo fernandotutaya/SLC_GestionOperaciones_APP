@@ -2,6 +2,9 @@ import { defineStore } from 'pinia';
 import axios from 'axios';
 import {jwtDecode} from 'jwt-decode';
 
+// Use API_BASE_URL constant that uses environment variable
+const API_BASE_URL = process.env.VITE_BASE_API;
+
 interface Company {
   _id: string;
   nombreLegal: string;
@@ -13,6 +16,31 @@ interface Sucursal {
   _id: string;
   nombreSucursal: string;
   direccion: string;
+}
+
+// Add Register and Verification types
+interface RegisterData {
+  nombreLegal: string;
+  companyName: string;
+  companyPassword: string;
+  email: string;
+  ruc?: string;
+  plan?: string;
+  sucursales?: string[];
+  estado?: boolean;
+  logoUrl?: string;
+  descripcion?: string;
+  telefono?: string;
+  direccion?: string;
+}
+
+interface VerificationData {
+  email: string;
+  verificationCode?: string;
+}
+
+interface PasswordResetData extends VerificationData {
+  newPassword: string;
 }
 
 interface AuthState {
@@ -37,7 +65,7 @@ export const useAuthStore = defineStore('AuthStore', {
   actions: {
     async login(companyName: string, companyPassword: string) {
       try {
-        const {data} = await axios.post('http://localhost:8080/api/auth/login', {companyName, companyPassword})
+        const {data} = await axios.post(`${API_BASE_URL}/api/auth/login`, {companyName, companyPassword})
         
         //Guardar usuario y token
         this.token = data.token
@@ -57,6 +85,71 @@ export const useAuthStore = defineStore('AuthStore', {
         throw error; // Lanzar el error para que pueda ser capturado en el componente
       }
     },
+    
+    // Register a new company with full details
+    async registerFull(registerData: RegisterData) {
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/api/auth/register`, registerData);
+        return data;
+      } catch (error) {
+        console.error('Error al registrar empresa:', error);
+        throw error;
+      }
+    },
+    
+    // Register with minimal required data
+    async registerMinimal(nombreLegal: string, companyName: string, companyPassword: string, email: string) {
+      try {
+        const registerData = {
+          nombreLegal,
+          companyName,
+          companyPassword,
+          email
+        };
+        const { data } = await axios.post(`${API_BASE_URL}/api/auth/register`, registerData);
+        return data;
+      } catch (error) {
+        console.error('Error al registrar empresa:', error);
+        throw error;
+      }
+    },
+    
+    // Request email verification code
+    async requestVerificationCode(email: string) {
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/api/auth/request-verification-code`, { email });
+        return data;
+      } catch (error) {
+        console.error('Error al solicitar código de verificación:', error);
+        throw error;
+      }
+    },
+    
+    // Verify email with verification code
+    async verifyEmail(email: string, verificationCode: string) {
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/api/auth/verify`, { email, verificationCode });
+        return data;
+      } catch (error) {
+        console.error('Error al verificar código:', error);
+        throw error;
+      }
+    },
+    
+    // Reset forgotten password
+    async resetPassword(email: string, verificationCode: string, newPassword: string) {
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/api/auth/forget-password`, { 
+          email, 
+          verificationCode, 
+          newPassword 
+        });
+        return data;
+      } catch (error) {
+        console.error('Error al restablecer contraseña:', error);
+        throw error;
+      }
+    },
 
     //Traer datos de la compania y guardar en el state company
     async fetchCompany() {
@@ -68,7 +161,7 @@ export const useAuthStore = defineStore('AuthStore', {
 
         const decoded = jwtDecode<{ companyId: string }>(this.token);
 
-        const { data } = await axios.get(`http://localhost:8080/api/company/${decoded.companyId}`);
+        const { data } = await axios.get(`${API_BASE_URL}/api/company/${decoded.companyId}`);
         this.company = data;        
       } catch (error) {
         console.log("Error Buscando compania", error)
@@ -87,22 +180,22 @@ export const useAuthStore = defineStore('AuthStore', {
       }
     
       try {
-        //http://localhost:8080/api/:companyId/sucursales/:id
         const sucursalId = this.company.sucursales[0]; 
-        const { data } = await axios.get(`http://localhost:8080/api/${this.company._id}/sucursales/${sucursalId}`);
+        const { data } = await axios.get(`${API_BASE_URL}/api/${this.company._id}/sucursales/${sucursalId}`);
         this.sucursal = data;
-      } catch (error) { /* ... */ }
+      } catch (error) { 
+        console.error('Error al obtener sucursal:', error);
+      }
     },
 
-    async changeSucursal(sucursalId: string) { // ← Recibir ID como parámetro
-      if (!this.token) return;
+    async changeSucursal(sucursalId: string) {
+      if (!this.token || !this.company) return;
 
       try {
-        const { data } = await axios.get(`.../sucursal/${sucursalId}`);
+        const { data } = await axios.get(`${API_BASE_URL}/api/${this.company._id}/sucursales/${sucursalId}`);
         this.sucursal = data;
-        // Actualizar token si es necesario
       } catch (error) {
-        console.error(error)
+        console.error('Error al cambiar sucursal:', error);
       }
     },
 

@@ -21,13 +21,14 @@
       @edit="handleEditProcess"
       @delete="handleDeleteProcess"
     />
-
+    
     <ProcessFromDrawer
       v-model:visible="showDrawer"
       :process="selectedProcess"
       :operation="selectedOperation"
       :mode="editMode"
       :machines="machines" 
+      
       @saved="handleSaveSuccess"
     />
 
@@ -40,7 +41,7 @@
 import ProcessDataTable from '@/components/procesos/ProcessDataTable.vue';
 import ProcessFromDrawer from '@/components/procesos/ProcessFromDrawer.vue';
 import ProcessFilters from '@/components/procesos/ProcessFilters.vue';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useOperationStore } from '@/stores/OperationStore';
 import { useMachineStore } from '@/stores/MachineStore';
 import { useAuthStore } from '@/stores/AuthStore';
@@ -66,15 +67,55 @@ const machines = ref<Machine[]>([]);
 
 // Buscar la operación a la que pertenece un proceso
 const findParentOperation = (procesoId: string): Operacion | null => {
-  return operationStore.operaciones.find(op => 
-    op.procesos.some(p => p._id === procesoId && p.tipo === 'Lavado')
-  ) || null;
+  // Verificar que el procesoId sea válido
+  if (!procesoId) {
+    console.error('procesoId no válido:', procesoId);
+    return null;
+  }
+
+  // Verificar que operationStore.operaciones tenga datos
+  if (!operationStore.operaciones || operationStore.operaciones.length === 0) {
+    console.warn('No hay operaciones cargadas en el store');
+    return null;
+  }
+
+  // Agregar logs para depuración
+  console.log('Buscando operación padre para proceso:', procesoId);
+  console.log('Total operaciones disponibles:', operationStore.operaciones.length);
+
+  // Buscar en todas las operaciones sin filtrar por tipo
+  const parentOperation = operationStore.operaciones.find(op => {
+    // Verificar que la operación tenga procesos
+    if (!op.procesos || op.procesos.length === 0) {
+      return false;
+    }
+
+    // Buscar el proceso por ID sin filtrar por tipo inicialmente
+    const found = op.procesos.some(p => p._id === procesoId);
+    
+    if (found) {
+      console.log('Operación encontrada:', op._id);
+    }
+    
+    return found;
+  });
+
+  if (!parentOperation) {
+    console.warn('No se encontró operación padre para el proceso:', procesoId);
+    
+    // Inspeccionar los IDs de procesos disponibles para depuración
+    const availableProcessIds = operationStore.operaciones
+      .flatMap(op => op.procesos.map(p => p._id));
+    console.log('IDs de procesos disponibles:', availableProcessIds);
+  }
+
+  return parentOperation || null;
 };
 
-const fetchProcesses = async (filters: ProcesoFilters = { tipo: 'Lavado' }) => {
+const fetchProcesses = async (filters: ProcesoFilters = { tipo: 'lavado' }) => {
   try {
     // Primero obtenemos operaciones actualizadas para asegurar que tenemos los datos más recientes
-    await operationStore.fetchOperaciones();
+    //await operationStore.fetchOperaciones();
     
     const procesos = await operationStore.filterProcesos({
       ...filters,
@@ -99,7 +140,7 @@ const handleFilter = (filters: ProcesoFilters) => {
 // Abrir el drawer en modo vista
 const handleViewProcess = (process: Proceso) => {
   selectedProcess.value = process;
-  selectedOperation.value = findParentOperation(process._id);
+  selectedOperation.value = findParentOperation(process._id ?? '');
   editMode.value = 'view';
   showDrawer.value = true;
 };
@@ -107,9 +148,12 @@ const handleViewProcess = (process: Proceso) => {
 // Abrir el drawer en modo edición
 const handleEditProcess = (process: Proceso) => {
   selectedProcess.value = process;
-  selectedOperation.value = findParentOperation(process._id);
+  selectedOperation.value = findParentOperation(process._id ?? '');
   editMode.value = 'edit';
   showDrawer.value = true;
+  
+  console.log('Proceso seleccionado:', process._id);
+  console.log('Editando proceso:', selectedOperation.value);
 };
 
 // Eliminar un proceso
@@ -175,10 +219,7 @@ const newProcessTemplate: Proceso = {
   tipo: 'Lavado',
   fecha: new Date().toISOString(),
   hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  responsable: { 
-    _id: '', 
-    nombreCompleto: '' 
-  },
+  responsable: { _id: '' }, // Asegurarse de asignar un _id válido antes de enviar
   detalles: [],
   estado: false,
   operacionId: '',

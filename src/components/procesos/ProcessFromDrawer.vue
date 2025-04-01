@@ -2,22 +2,22 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { useOperationStore } from '@/stores/OperationStore';
 import { useEmployeeStore } from '@/stores/EmployeeStore';
-import type { Proceso, Operacion, NewOperacion, NewProceso, ProcesoDetail } from '@/types/OperationTypes';
-import ProcessDetails from './ProcessDetails.vue';
-import { useAuthStore } from '@/stores/AuthStore';
 import { useToast } from 'primevue/usetoast';
+import type { Proceso, Operacion, NewOperacion, ProcesoDetail } from '@/types/OperationTypes';
+import ProcessDetails from './ProcessDetails.vue';
 
+// Stores
 const operationStore = useOperationStore();
 const employeeStore = useEmployeeStore();
-const authStore = useAuthStore();
 const toast = useToast();
 
+// Props y Emits
 const props = defineProps<{
   visible?: boolean;
   process?: Proceso | null;
-  operation?: Operacion | null;
+  operation?: Operacion | null | undefined;
   mode?: 'view' | 'edit' | 'add';
-  machines: any[]; // Add machines prop
+  machines: any[];
 }>();
 
 const emit = defineEmits<{
@@ -25,18 +25,26 @@ const emit = defineEmits<{
   (e: 'saved'): void;
 }>();
 
-// Opciones de tipos de proceso (en minúsculas para la API)
+// Estado y Referencias
+const loading = ref(false);
+const selectedResponsableId = ref('');
+
+// Datos de proceso
 const procesoTipos = [
   { label: 'Lavado', value: 'lavado' },
   { label: 'Secado', value: 'secado' },
   { label: 'Planchado', value: 'planchado' },
   { label: 'Doblado', value: 'doblado' },
-  { label: 'Empaquetado', value: 'empaquetado' }
+  { label: 'Empaquetado', value: 'empaquetado' },
+  {label: 'Control de Calidad', value: 'cc'},
+  {label: 'Finalizado', value: 'finalizado'}
+
 ];
 
+// Formulario inicial
 const formData = ref<Proceso>({
   _id: '',
-  tipo: 'lavado', // En minúsculas para la API
+  tipo: 'lavado',
   fecha: new Date().toISOString(),
   hora: '08:00',
   responsable: {
@@ -47,56 +55,73 @@ const formData = ref<Proceso>({
   estado: false,
   operacionId: props.operation?._id || '',
   createdAt: new Date().toISOString(),
-  nextStage: 'secado' // En minúsculas para la API
+  nextStage: ''
 });
 
 const detallesEditables = ref<Proceso['detalles']>([]);
 const isViewOnly = computed(() => props.mode === 'view');
-const selectedResponsableId = ref('');
-const loading = ref(false);
 
-// Initialize employee data when component is mounted
+// Lifecycle Hooks
 onMounted(async () => {
   await employeeStore.initialize();
 });
 
+// Observadores
 watch(() => props.visible, async (visible) => {
   if (visible) {
-    // Ensure employees are loaded when drawer becomes visible
     await employeeStore.initialize();
     
     if (props.process && (props.mode === 'edit' || props.mode === 'view')) {
       formData.value = { ...props.process };
       detallesEditables.value = [...props.process.detalles];
       
-      // Si estamos en modo edición y hay responsable, cargamos el ID para posible edición
-      if (props.mode === 'edit' && props.process.responsable?._id) {
+      // Inicializa el ID del responsable si existe
+      if (props.process.responsable?._id) {
         selectedResponsableId.value = props.process.responsable._id;
       }
     } else if (props.mode === 'add') {
-      // Reiniciar el formulario para modo add
-      formData.value = {
-        _id: '',
-        tipo: 'lavado', // En minúsculas para la API
-        fecha: new Date().toISOString(),
-        hora: '08:00',
-        responsable: {
-          _id: '',
-          nombreCompleto: 'Responsable no asignado'
-        },
-        detalles: [],
-        estado: false,
-        operacionId: '',
-        createdAt: new Date().toISOString(),
-        nextStage: 'secado' // En minúsculas para la API
-      };
-      detallesEditables.value = [];
-      selectedResponsableId.value = '';
+      resetForm();
     }
   }
 });
 
-// Manejar la actualización de detalles desde el componente ProcessDetails
+// Observa cambios en el responsable seleccionado
+watch(() => selectedResponsableId.value, (newId) => {
+  if (newId) {
+    const selectedEmployee = employeeStore.employees.find(emp => emp._id === newId);
+    if (selectedEmployee) {
+      // Actualiza el objeto responsable en formData cuando cambia la selección
+      formData.value.responsable = {
+        _id: selectedEmployee._id,
+        nombreCompleto: `${selectedEmployee.apellidos} ${selectedEmployee.nombres}`,
+        puesto: selectedEmployee.puesto,
+        area: selectedEmployee.areaTrabajo
+      };
+    }
+  }
+});
+
+// Métodos
+const resetForm = () => {
+  formData.value = {
+    _id: '',
+    tipo: 'lavado',
+    fecha: new Date().toISOString(),
+    hora: '08:00',
+    responsable: {
+      _id: '',
+      nombreCompleto: 'Responsable no asignado'
+    },
+    detalles: [],
+    estado: false,
+    operacionId: '',
+    createdAt: new Date().toISOString(),
+    nextStage: 'secado'
+  };
+  detallesEditables.value = [];
+  selectedResponsableId.value = '';
+};
+
 const updateDetalles = (detalles: ProcesoDetail[]) => {
   formData.value.detalles = [...detalles];
 };
@@ -108,7 +133,7 @@ const validateForm = (): boolean => {
   }
 
   // Verificar que se ha seleccionado un responsable
-  if (!selectedResponsableId.value && !formData.value.responsable._id) {
+  if (!formData.value.responsable._id) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Debe seleccionar un responsable', life: 3000 });
     return false;
   }
@@ -139,17 +164,39 @@ const saveProcess = async () => {
       return;
     }
     
-    const newProceso: Proceso = {
-
-      // Nos aseguramos que tipo también esté en minúsculas
-      tipo: formData.value.tipo,
-      fecha: formData.value.fecha,
-      hora: formData.value.hora,
-      responsable: {
-        _id: formData.value.responsable._id,
-      },
-      detalles: [
-        ...formData.value.detalles.map(d => ({
+    loading.value = true;
+    
+    if (props.mode === 'add') {
+      // Creación del proceso a partir del formulario para nueva operación
+      const newProceso: Proceso = {
+        tipo: formData.value.tipo,
+        fecha: formData.value.fecha,
+        hora: formData.value.hora,
+        responsable: {
+          _id: formData.value.responsable._id,
+        },
+        detalles: [
+          ...formData.value.detalles.map(d => ({
+            numOrden: d.numOrden,
+            maquina: {
+              _id: d.maquina._id
+            },
+            cantPrendas: d.cantPrendas,
+            etiqueta: d.etiqueta,
+            observaciones: d.observaciones
+          }))
+        ],
+        estado: false,
+        createdAt: formData.value.createdAt,
+      };
+      
+      // Creación del siguiente proceso a partir del formulario
+      const nextProceso: Proceso = {
+        tipo: formData.value.nextStage || 'No definido',
+        fecha: formData.value.fecha,
+        hora: formData.value.hora,
+        responsable: formData.value.responsable,
+        detalles: [...formData.value.detalles.map(d => ({
           numOrden: d.numOrden,
           maquina: {
             _id: d.maquina._id
@@ -157,106 +204,69 @@ const saveProcess = async () => {
           cantPrendas: d.cantPrendas,
           etiqueta: d.etiqueta,
           observaciones: d.observaciones
-        }))
-      ],
-      estado: false,
-      createdAt: formData.value.createdAt,
-    };
-
-    const nextProceso: Proceso = {
-      tipo: formData.value.nextStage || 'secado',
-      fecha: formData.value.fecha,
-      hora: formData.value.hora,
-      responsable:{},
-      detalles: [],
-      estado: false,
-      createdAt: formData.value.createdAt,
+        }))],
+        estado: false,
+        createdAt: formData.value.createdAt,
+      };
       
-    };
-
-    console.log('ESTE ES EL PROCESOS', JSON.stringify(newProceso))
-    loading.value = true;
-    if (props.mode === 'add') {
       // Create a new operation with the current process
       const newOperation: NewOperacion = {
         fecInicio: new Date().toISOString(),
         fecFinal: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), // Default 8 hours later
         estadoOperacion: false,
-        currentStage: formData.value.tipo.toLowerCase(), // Aseguramos que esté en minúsculas
-        nextStage: formData.value.nextStage?.toLowerCase() || 'secado', // Aseguramos que esté en minúsculas y manejamos caso undefined
+        currentStage: formData.value.tipo.toLowerCase(),
+        nextStage: formData.value.nextStage?.toLowerCase() || 'secado',
         procesos: [newProceso, nextProceso]
       };
       
-      console.log('Esta es la nueva operacion: ', JSON.stringify(newOperation));
-
-      // Create operation and get the created operation ID
-      const response = await operationStore.createOperacion(newOperation);
+      await operationStore.createOperacion(newOperation);
       
-      // Verificamos el formato de la respuesta para compatibilidad
-      // let operationId: string | undefined;
+      toast.add({ severity: 'success', summary: 'Éxito', detail: 'Proceso creado correctamente', life: 3000 });
+    } else if (props.mode === 'edit') {
+      // Para la actualización, necesitamos adaptar el objeto al formato esperado por la API
+      // Siguiendo la estructura requerida por updateProceso en el store
       
-      // if (response?.data?.operacion?._id) {
-      //   // Nuevo formato con data.operacion._id
-      //   operationId = response.data.operacion._id;
-      // } else if ((response as any)?.operacion?._id) {
-      //   // Formato antiguo con operacion._id directamente
-      //   operationId = (response as any).operacion._id;
-      // }
-      
-      // if (operationId) {
-      //   // Update process with responsable from selection if available
-      //   if (selectedResponsableId.value) {
-      //     const selectedEmployee = employeeStore.employees.find(emp => emp._id === selectedResponsableId.value);
-      //     if (selectedEmployee) {
-      //       formData.value.responsable = {
-      //         _id: selectedEmployee._id,
-      //         nombreCompleto: `${selectedEmployee.apellidos} ${selectedEmployee.nombres}`,
-      //         puesto: selectedEmployee.puesto,
-      //         area: selectedEmployee.areaTrabajo
-      //       };
-      //     }
-      //   }
-        
-      //   
-        
-      //   // Add process to the newly created operation
-      //   await operationStore.addProcesoToOperacion(
-      //     operationId,
-      //     newProceso
-      //   );
-        
-      //   toast.add({ severity: 'success', summary: 'Éxito', detail: 'Proceso de lavado creado correctamente', life: 3000 });
-      // }
-
-      console.log('ESTA ES LA OPERACION', JSON.stringify(response))
-    } else if (props.mode === 'edit' && props.operation?._id && formData.value._id) {
-      // Si hay cambios en el responsable, actualizamos
-      if (selectedResponsableId.value && selectedResponsableId.value !== formData.value.responsable._id) {
-        const selectedEmployee = employeeStore.employees.find(emp => emp._id === selectedResponsableId.value);
-        if (selectedEmployee) {
-          formData.value.responsable = {
-            _id: selectedEmployee._id,
-            nombreCompleto: `${selectedEmployee.apellidos} ${selectedEmployee.nombres}`,
-            puesto: selectedEmployee.puesto,
-            area: selectedEmployee.areaTrabajo
-          };
-        }
-      }
-      
-      // Asegurarnos que tipo y nextStage estén en minúsculas también al editar
-      const updatedProceso = {
-        ...formData.value,
+      const updatedProceso: Partial<Proceso> = {
         tipo: formData.value.tipo.toLowerCase(),
-        nextStage: formData.value.nextStage?.toLowerCase() || 'secado'
+        fecha: formData.value.fecha,
+        hora: formData.value.hora,
+        responsable: {
+          _id: formData.value.responsable._id,
+        },
+        detalles: formData.value.detalles.map(d => ({
+          numOrden: d.numOrden,
+          maquina: {
+            _id: d.maquina._id
+          },
+          cantPrendas: d.cantPrendas,
+          etiqueta: d.etiqueta,
+          observaciones: d.observaciones
+        })),
+        estado: formData.value.estado
       };
       
+      // También actualizar la etapa actual si es necesario
+      if (formData.value.nextStage) {
+        await operationStore.updateCurrentStage(
+          props.operation._id,
+          { 
+            currentStage: formData.value.tipo.toLowerCase(),
+            nextStage: formData.value.nextStage.toLowerCase() 
+          }
+        );
+      }
+      
+      // Actualizar el proceso en sí
       await operationStore.updateProceso(
         props.operation._id,
         formData.value._id,
         updatedProceso
       );
       toast.add({ severity: 'success', summary: 'Éxito', detail: 'Proceso actualizado correctamente', life: 3000 });
+    }else{
+      console.log("No se ha podido actualizar el proceso");
     }
+    
     emit('saved');
     closeDrawer();
   } catch (error) {
@@ -265,12 +275,6 @@ const saveProcess = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-const updateDetalle = (index: number, field: string, value: any) => {
-  detallesEditables.value = detallesEditables.value.map((d, i) => 
-    i === index ? { ...d, [field]: value } : d
-  );
 };
 
 const closeDrawer = () => emit('update:visible', false);
@@ -291,7 +295,7 @@ const closeDrawer = () => emit('update:visible', false);
     <Toast />
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="space-y-4">
-        <!-- Selector de Responsable (disponible en modo add y edit) -->
+        <!-- Selector de Responsable -->
         <div v-if="props.mode === 'add' || props.mode === 'edit'" class="field">
           <label>Seleccionar Responsable</label>
           <Dropdown
@@ -302,6 +306,9 @@ const closeDrawer = () => emit('update:visible', false);
             placeholder="Seleccione responsable"
             class="w-full"
           />
+          <small v-if="formData.responsable._id" class="text-green-500">
+            Responsable seleccionado: {{ formData.responsable.nombreCompleto }}
+          </small>
         </div>
 
         <!-- Campos visibles en modo add -->

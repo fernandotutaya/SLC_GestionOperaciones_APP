@@ -14,6 +14,8 @@ declare module 'vue' {
     Calendar: typeof import('primevue/calendar')['default']
     Card: typeof import('primevue/card')['default']
     CascadeSelect: typeof import('primevue/cascadeselect')['default']
+    Chart: typeof import('primevue/chart')['default']
+    Charts: typeof import('./src/components/dashboard/Charts.vue')['default']
     Column: typeof import('primevue/column')['default']
     Configuration: typeof import('./src/components/dashboard/Configuration.vue')['default']
     ConfirmDialog: typeof import('primevue/confirmdialog')['default']
@@ -36,7 +38,6 @@ declare module 'vue' {
     ProcessDetails: typeof import('./src/components/procesos/ProcessDetails.vue')['default']
     ProcessFilters: typeof import('./src/components/procesos/ProcessFilters.vue')['default']
     ProcessFromDrawer: typeof import('./src/components/procesos/ProcessFromDrawer.vue')['default']
-    ProgressSpinner: typeof import('primevue/progressspinner')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SelectButton: typeof import('primevue/selectbutton')['default']
@@ -59,5 +60,6 @@ declare module 'vue' {
   }
   export interface ComponentCustomProperties {
     Ripple: typeof import('primevue/ripple')['default']
+    Tooltip: typeof import('primevue/tooltip')['default']
   }
 }

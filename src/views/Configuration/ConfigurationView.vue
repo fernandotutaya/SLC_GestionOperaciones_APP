@@ -4,7 +4,7 @@
     <div class="max-w-6xl mx-auto">
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-100">
-          Application Configuration
+          Configuracion de la aplicación
         </h1>
         <Button
           label="Reset Defaults"
@@ -33,10 +33,10 @@ const configStore = useConfigurationStore();
 
 const tabs = ref([
   { key: 'general', label: 'General', component: defineAsyncComponent(() => import('./components/GeneralSettings.vue')) },
-  { key: 'security', label: 'Security', component: defineAsyncComponent(() => import('./components/SecuritySettings.vue')) },
-  { key: 'notifications', label: 'Notifications', component: defineAsyncComponent(() => import('./components/NotificationSettings.vue')) },
-  { key: 'advanced', label: 'Advanced', component: defineAsyncComponent(() => import('./components/sections/AdvanceSection.vue')) },
-  {key: 'account', label: 'Account', component: defineAsyncComponent(() => import('./components/AccountSettings.vue'))},
+  { key: 'security', label: 'Seguridad', component: defineAsyncComponent(() => import('./components/SecuritySettings.vue')) },
+  { key: 'notifications', label: 'Notificaciones', component: defineAsyncComponent(() => import('./components/NotificationSettings.vue')) },
+  { key: 'advanced', label: 'Avanzada', component: defineAsyncComponent(() => import('./components/sections/AdvanceSection.vue')) },
+  {key: 'account', label: 'Cuenta', component: defineAsyncComponent(() => import('./components/AccountSettings.vue'))},
 ]);
 
 onMounted(async () => {

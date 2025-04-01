@@ -50,6 +50,11 @@ const MainRoutes = {
             name: 'config',
             component: () => import('@/views/Configuration/ConfigurationView.vue')
         },
+        {
+            path: 'proceso',
+            name: 'proceso',
+            component: () => import('@/views/operaciones/Operaciones.vue')
+        },
         EmployeRoutes,
         SucursalRoutes,
         MaquinaRoutes

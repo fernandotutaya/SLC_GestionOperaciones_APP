@@ -1,5 +1,8 @@
 <template>
   <div class="card flex justify-center items-center h-screen">
+    <!-- Añadir componente Toast para mostrar notificaciones -->
+    <Toast />
+    
     <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6">
       <Stepper v-model:value="currentStep" class="basis-[50rem]">
         <StepList>
@@ -19,10 +22,10 @@
                   <label class="text-sm font-medium mb-2">Nombre de Usuario</label>
                   <InputText 
                     v-model="formData.companyName"
-                    :class="{'p-invalid': v$.companyName.$invalid && submitted}"
+                    :class="{'p-invalid': v$.step1.companyName.$invalid && submitted}"
                     placeholder="ej: lavanderiaexpress"
                   />
-                  <small class="p-error" v-if="v$.companyName.$invalid && submitted">
+                  <small class="p-error" v-if="v$.step1.companyName.$invalid && submitted">
                     El nombre de usuario es requerido
                   </small>
                 </div>
@@ -31,10 +34,10 @@
                   <InputText 
                     v-model="formData.email"
                     type="email"
-                    :class="{'p-invalid': v$.email.$invalid && submitted}"
+                    :class="{'p-invalid': v$.step1.email.$invalid && submitted}"
                     placeholder="contacto@empresa.com"
                   />
-                  <small class="p-error" v-if="v$.email.$invalid && submitted">
+                  <small class="p-error" v-if="v$.step1.email.$invalid && submitted">
                     Ingrese un correo válido
                   </small>
                 </div>
@@ -43,9 +46,9 @@
                   <Password 
                     v-model="formData.companyPassword"
                     toggleMask
-                    :class="{'p-invalid': v$.companyPassword.$invalid && submitted}"
+                    :class="{'p-invalid': v$.step1.companyPassword.$invalid && submitted}"
                   />
-                  <small class="p-error" v-if="v$.companyPassword.$invalid && submitted">
+                  <small class="p-error" v-if="v$.step1.companyPassword.$invalid && submitted">
                     La contraseña debe tener al menos 8 caracteres
                   </small>
                 </div>
@@ -54,9 +57,9 @@
                   <Password 
                     v-model="formData.confirmPassword"
                     toggleMask
-                    :class="{'p-invalid': v$.confirmPassword.$invalid && submitted}"
+                    :class="{'p-invalid': v$.step1.confirmPassword.$invalid && submitted}"
                   />
-                  <small class="p-error" v-if="v$.confirmPassword.$invalid && submitted">
+                  <small class="p-error" v-if="v$.step1.confirmPassword.$invalid && submitted">
                     Las contraseñas no coinciden
                   </small>
                 </div>
@@ -81,10 +84,10 @@
                   <label class="text-sm font-medium mb-2">Nombre Legal</label>
                   <InputText 
                     v-model="formData.nombreLegal"
-                    :class="{'p-invalid': v$.nombreLegal.$invalid && submitted}"
+                    :class="{'p-invalid': v$.step2.nombreLegal.$invalid && submitted}"
                     placeholder="ej: Lavandería Express S.A.C."
                   />
-                  <small class="p-error" v-if="v$.nombreLegal.$invalid && submitted">
+                  <small class="p-error" v-if="v$.step2.nombreLegal.$invalid && submitted">
                     El nombre legal es requerido
                   </small>
                 </div>
@@ -92,10 +95,10 @@
                   <label class="text-sm font-medium mb-2">RUC</label>
                   <InputText 
                     v-model="formData.ruc"
-                    :class="{'p-invalid': v$.ruc.$invalid && submitted}"
+                    :class="{'p-invalid': v$.step2.ruc.$invalid && submitted}"
                     placeholder="20123456789"
                   />
-                  <small class="p-error" v-if="v$.ruc.$invalid && submitted">
+                  <small class="p-error" v-if="v$.step2.ruc.$invalid && submitted">
                     Ingrese un RUC válido
                   </small>
                 </div>
@@ -233,11 +236,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, sameAs } from '@vuelidate/validators'
-import axios from 'axios'
 import type { FileUploadUploaderEvent } from 'primevue/fileupload'
+import { useAuthStore } from '@/stores/AuthStore'
+import { useToast } from 'primevue/usetoast'
+import { useRouter } from 'vue-router'
 
 interface Plan {
   name: string;
@@ -264,6 +269,9 @@ const currentStep = ref<string>('1')
 const loading = ref<boolean>(false)
 const submitted = ref<boolean>(false)
 const verificationCode = ref<string>('')
+const authStore = useAuthStore()
+const toast = useToast()
+const router = useRouter()
 
 const formData = reactive({
   companyName: '',
@@ -288,30 +296,64 @@ const planes = [
 ]
 
 const rules = {
-  companyName: { required },
-  email: { required, email },
-  companyPassword: { required, minLength: minLength(8) },
-  confirmPassword: { required, sameAsPassword: sameAs(formData.companyPassword) },
-  nombreLegal: { required },
-  ruc: { required, minLength: minLength(11) }
+  // Step 1 rules
+  step1: {
+    companyName: { required },
+    email: { required, email },
+    companyPassword: { required, minLength: minLength(8) },
+    confirmPassword: { 
+      required, 
+      sameAsPassword: () => sameAs(formData.companyPassword)
+    }
+  },
+  // Step 2 rules
+  step2: {
+    nombreLegal: { required },
+    ruc: { required, minLength: minLength(11) }
+  },
+  // Step 3 rules - no validation required for now
+  step3: {}
 }
 
-const v$ = useVuelidate(rules, formData)
+// Crear un validador compuesto
+const v$ = useVuelidate(rules, { 
+  step1: formData, 
+  step2: formData,
+  step3: formData
+})
 
 const handleNextStep = async (activateCallback: (step: string) => void) => {
   submitted.value = true
-  const isStepValid = await v$.value.$validate()
+  
+  // Determinar qué conjunto de reglas validar según el paso actual
+  let currentRules;
+  if (currentStep.value === '1') currentRules = v$.value.step1;
+  else if (currentStep.value === '2') currentRules = v$.value.step2;
+  else if (currentStep.value === '3') currentRules = v$.value.step3;
+  else currentRules = v$.value.step1; // Valor por defecto para evitar undefined
+  
+  // Validar solo las reglas del paso actual
+  const isStepValid = await currentRules.$validate()
+  
+  // Añadir log para diagnóstico
+  console.log('Validación del formulario:', isStepValid)
+  if (!isStepValid) {
+    console.log('Errores de validación:', currentRules.$errors)
+  }
   
   if (isStepValid) {
     const nextStep = (parseInt(currentStep.value) + 1).toString()
     if (currentStep.value === '1') {
       try {
-        await axios.post('http://localhost:8080/api/auth/request-verification-code', {
-          email: formData.email
-        })
+        loading.value = true
+        await authStore.requestVerificationCode(formData.email)
+        toast.add({ severity: 'success', summary: 'Código enviado', detail: 'Se ha enviado un código de verificación a su correo electrónico', life: 3000 })
         activateCallback(nextStep)
       } catch (error) {
         console.error('Error:', error)
+        toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo enviar el código de verificación', life: 3000 })
+      } finally {
+        loading.value = false
       }
     } else {
       activateCallback(nextStep)
@@ -320,18 +362,120 @@ const handleNextStep = async (activateCallback: (step: string) => void) => {
 }
 
 const handleSubmit = async () => {
+  if (!verificationCode.value) {
+    toast.add({ severity: 'warn', summary: 'Advertencia', detail: 'Ingrese el código de verificación', life: 3000 })
+    return
+  }
+  
   loading.value = true
   try {
-    await axios.post('http://localhost:8080/api/auth/verify', {
-      email: formData.email,
-      verificationCode: verificationCode.value
-    })
+    // Verificar el código
+    try {
+      await authStore.verifyEmail(formData.email, verificationCode.value)
+    } catch (verifyError: any) {
+      // Manejo específico para errores de verificación
+      console.error('Error de verificación:', verifyError)
+      
+      if (verifyError.response) {
+        // Errores de respuesta del servidor
+        if (verifyError.response.status === 400) {
+          toast.add({ 
+            severity: 'error', 
+            summary: 'Error de verificación', 
+            detail: 'El código de verificación es incorrecto o ha expirado', 
+            life: 5000 
+          })
+        } else if (verifyError.response.status === 404) {
+          toast.add({ 
+            severity: 'error', 
+            summary: 'Error de verificación', 
+            detail: 'No se encontró una solicitud de verificación para este correo', 
+            life: 5000 
+          })
+        } else {
+          toast.add({ 
+            severity: 'error', 
+            summary: 'Error de verificación', 
+            detail: 'No se pudo verificar el código. Intente solicitar uno nuevo.', 
+            life: 5000 
+          })
+        }
+      } else {
+        toast.add({ 
+          severity: 'error', 
+          summary: 'Error de verificación', 
+          detail: 'No se pudo verificar el código. Intente solicitar uno nuevo.', 
+          life: 5000 
+        })
+      }
+      
+      loading.value = false
+      return
+    }
     
-    const { confirmPassword, ...registrationData } = formData
-    await axios.post('http://localhost:8080/api/auth/register', registrationData)
-    // Aquí puedes agregar la lógica de redirección o mensaje de éxito
-  } catch (error) {
-    console.error('Error:', error)
+    // Registrar empresa
+    try {
+      const { confirmPassword, ...registrationData } = formData
+      await authStore.registerFull(registrationData)
+      
+      toast.add({ severity: 'success', summary: 'Éxito', detail: 'Empresa registrada exitosamente', life: 3000 })
+      
+      // Redireccionar al login después de un breve retraso
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 2000)
+    } catch (registerError: any) {
+      // Manejo específico para errores de registro
+      console.error('Error de registro:', registerError)
+      
+      if (registerError.response) {
+        // Errores de respuesta del servidor
+        if (registerError.response.status === 409) {
+          toast.add({ 
+            severity: 'error', 
+            summary: 'Error de registro', 
+            detail: 'El correo electrónico o nombre de usuario ya está registrado', 
+            life: 5000 
+          })
+        } else if (registerError.response.status === 400) {
+          let errorMessage = 'Información de registro inválida';
+          
+          // Si hay un mensaje específico del servidor, lo usamos
+          if (registerError.response.data && registerError.response.data.message) {
+            errorMessage = registerError.response.data.message;
+          }
+          
+          toast.add({ 
+            severity: 'error', 
+            summary: 'Error de registro', 
+            detail: errorMessage, 
+            life: 5000 
+          })
+        } else {
+          toast.add({ 
+            severity: 'error', 
+            summary: 'Error de registro', 
+            detail: 'Ocurrió un problema al registrar la empresa. Por favor, intente nuevamente.', 
+            life: 5000 
+          })
+        }
+      } else {
+        toast.add({ 
+          severity: 'error', 
+          summary: 'Error de registro', 
+          detail: 'Ocurrió un problema al registrar la empresa. Por favor, intente nuevamente.', 
+          life: 5000 
+        })
+      }
+    }
+  } catch (error: any) {
+    console.error('Error general:', error)
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Error', 
+      detail: 'Ocurrió un error inesperado. Por favor, intente nuevamente más tarde.', 
+      life: 5000 
+    })
   } finally {
     loading.value = false
   }
@@ -347,11 +491,11 @@ const handleLogoUpload = (event: FileUploadUploaderEvent) => {
 const requestNewCode = async () => {
   loading.value = true
   try {
-    await axios.post('http://localhost:8080/api/auth/request-verification-code', {
-      email: formData.email
-    })
+    await authStore.requestVerificationCode(formData.email)
+    toast.add({ severity: 'success', summary: 'Código enviado', detail: 'Se ha enviado un nuevo código de verificación a su correo electrónico', life: 3000 })
   } catch (error) {
     console.error('Error:', error)
+    toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo enviar el código de verificación', life: 3000 })
   } finally {
     loading.value = false
   }

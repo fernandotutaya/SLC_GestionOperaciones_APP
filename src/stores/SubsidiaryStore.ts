@@ -18,7 +18,7 @@ export const useSucursalStore = defineStore('sucursal', {
       try {
         this.loading = true;
         const response = await axios.get<Sucursal[]>(
-          `${API_BASE_URL}/${authStore.company?._id}/sucursales`
+          `${API_BASE_URL}/api/${authStore.company?._id}/sucursales`
         );
         this.sucursales = response.data;
       } catch (error) {
@@ -33,7 +33,7 @@ export const useSucursalStore = defineStore('sucursal', {
       try {
         this.loading = true;
         const response = await axios.get<Sucursal>(
-          `${API_BASE_URL}/${authStore.company?._id}/sucursales/${id}`
+          `${API_BASE_URL}/api/${authStore.company?._id}/sucursales/${id}`
         );
         this.currentSucursal = response.data;
       } catch (error) {
@@ -48,7 +48,7 @@ export const useSucursalStore = defineStore('sucursal', {
       try {
         this.loading = true;
         await axios.post(
-          `${API_BASE_URL}/${authStore.company?._id}/sucursales`,
+          `${API_BASE_URL}/api/${authStore.company?._id}/sucursales`,
           sucursal
         );
         await this.fetchSucursales();
@@ -64,7 +64,7 @@ export const useSucursalStore = defineStore('sucursal', {
       try {
         this.loading = true;
         await axios.put(
-          `${API_BASE_URL}/${authStore.company?._id}/sucursales/${id}`,
+          `${API_BASE_URL}/api/${authStore.company?._id}/sucursales/${id}`,
           sucursal
         );
         await this.fetchSucursales();
@@ -80,7 +80,7 @@ export const useSucursalStore = defineStore('sucursal', {
       try {
         this.loading = true;
         await axios.delete(
-          `${API_BASE_URL}/${authStore.company?._id}/sucursales/${id}`
+          `${API_BASE_URL}/api/${authStore.company?._id}/sucursales/${id}`
         );
         this.sucursales = this.sucursales.filter(suc => suc._id !== id);
       } catch (error) {

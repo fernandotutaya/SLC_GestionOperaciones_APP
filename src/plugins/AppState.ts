@@ -12,7 +12,7 @@ export default {
         // Define el estado reactivo con los tipos correspondientes
         const _appState: AppState = reactive({ 
             theme: 'Aura', 
-            darkTheme: false 
+            darkTheme: true 
         });
 
         // Agrega el estado global a las propiedades de la aplicación
